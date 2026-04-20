@@ -1,11 +1,14 @@
-const CREW_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxCmgHebgJQsAp-RgmdaUCg5jtgo33PqLrTyNXS_xBuh1M5BVmwg1xp3nk6-UnXyP_5/exec';
+/**
+ * HT-BPDT Crew Portal - Logic Bridge for GitHub Pages
+ * Versión: 1.2.0
+ */
 
-window.APP_CONFIG = window.APP_CONFIG || {
-  app: 'tripulante',
-  httpEndpoint: CREW_WEB_APP_URL
-};
+// --- CONFIGURACIÓN TÉCNICA ---
+// IMPORTANTE: Pega aquí la URL que te dio Google Apps Script al publicar como Aplicación Web
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwjLw7r2CTsqIDUEsScWwRI1MdPN9nAAXelyeBUGqqGenrz-h6ULrQvC1P548taZsT2/exec';
 
-const crewState = {
+// --- ESTADO GLOBAL ---
+let currentState = {
   view: 'login',
   isLoading: false,
   user: null,
@@ -13,400 +16,257 @@ const crewState = {
   regStep: 1,
   form: {
     dni: '',
+    pass: '',
     nombres: '',
     apellidos: '',
     cargo: '',
-    empresa: '',
-    empresaRuc: ''
-  },
-  summary: {
-    totalDocs: 0,
-    validatedDocs: 0,
-    compliance: 0
-  },
-  documents: []
+    empresa: ''
+  }
 };
 
-document.addEventListener('DOMContentLoaded', function () {
-  if (typeof lucide !== 'undefined') {
-    lucide.createIcons();
-  }
-});
+// --- INICIALIZACIÓN ---
+window.onload = () => {
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+};
 
-async function crewRpc(action, payload) {
-  const request = {
-    app: 'tripulante',
-    action: action,
-    payload: payload || {}
-  };
-
-  if (typeof google !== 'undefined' && google.script && google.script.run) {
-    return new Promise(function (resolve, reject) {
-      google.script.run
-        .withSuccessHandler(function (response) {
-          if (response && response.ok) {
-            resolve(response.data);
-            return;
-          }
-          reject(new Error(response && response.error ? response.error.message : 'Respuesta inválida del backend.'));
-        })
-        .withFailureHandler(function (error) {
-          reject(error instanceof Error ? error : new Error(String(error)));
-        })
-        .dispatchRpc(request);
-    });
-  }
-
-  if (!window.APP_CONFIG || !window.APP_CONFIG.httpEndpoint) {
-    throw new Error('No existe APP_CONFIG.httpEndpoint.');
-  }
-
-  let response;
+/**
+ * CORE: Comunicación con el Backend (Apps Script)
+ */
+async function callServer(action, payload = {}) {
   try {
-    response = await fetch(window.APP_CONFIG.httpEndpoint, {
+    const response = await fetch(WEB_APP_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(request),
-      redirect: 'follow'
+      mode: 'cors', 
+      body: JSON.stringify({ action, payload })
     });
-  } catch (networkError) {
-    throw new Error('No se pudo conectar con la Web App de Apps Script. Revisa la URL /exec, el despliegue y los permisos.');
+    
+    if (!response.ok) throw new Error('Error en la red');
+    
+    const result = await response.json();
+    return result;
+  } catch (err) {
+    console.error("Error de conexión:", err);
+    return { success: false, message: "No se pudo conectar con el servidor" };
   }
-
-  const rawText = await response.text();
-
-  if (!response.ok) {
-    throw new Error('HTTP ' + response.status + ': ' + rawText);
-  }
-
-  let json;
-  try {
-    json = JSON.parse(rawText);
-  } catch (parseError) {
-    throw new Error('La respuesta no fue JSON válido: ' + rawText.slice(0, 300));
-  }
-
-  if (!json.ok) {
-    throw new Error(json.error && json.error.message ? json.error.message : 'Error del backend.');
-  }
-
-  return json.data;
 }
 
+/**
+ * NAVEGACIÓN Y UI HELPERS (Sin cambios visuales)
+ */
 function switchView(viewName) {
-  ['login', 'dni-check', 'register', 'dashboard'].forEach(function (view) {
-    const element = document.getElementById('view-' + view);
-    if (!element) return;
-    element.classList.add('view-hidden');
-    element.classList.remove('view-active');
+  const views = ['login', 'dni-check', 'register', 'dashboard'];
+  views.forEach(v => {
+    const el = document.getElementById(`view-${v}`);
+    if (el) {
+      el.classList.add('view-hidden');
+      el.classList.remove('view-active');
+    }
   });
 
-  const target = document.getElementById('view-' + viewName);
-  if (target) {
-    target.classList.remove('view-hidden');
-    target.classList.add('view-active');
+  const targetEl = document.getElementById(`view-${viewName}`);
+  if (targetEl) {
+    targetEl.classList.remove('view-hidden');
+    targetEl.classList.add('view-active');
   }
-
-  crewState.view = viewName;
-
-  if (typeof lucide !== 'undefined') {
-    lucide.createIcons();
-  }
+  
+  currentState.view = viewName;
+  if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function setIsLoading(loading) {
-  crewState.isLoading = loading;
-  const loader = document.getElementById('global-loader');
-  if (!loader) return;
-  loader.classList.toggle('hidden', !loading);
-}
-
-async function handleLogin() {
-  const dni = document.getElementById('login-dni').value.trim();
-  const password = document.getElementById('login-pass').value.trim();
-
-  if (!dni || !password) {
-    alert('Ingresa tu DNI y tu contraseña.');
-    return;
+  currentState.isLoading = loading;
+  const overlay = document.getElementById('loading-overlay');
+  if (overlay) {
+    overlay.style.display = loading ? 'flex' : 'none';
   }
-
-  setIsLoading(true);
-
-  try {
-    const auth = await crewRpc('auth.login', {
-      dni: dni,
-      password: password,
-      portal: 'TRIPULANTE'
-    });
-
-    crewState.user = auth.user;
-    await loadCrewDashboard();
-    switchView('dashboard');
-  } catch (error) {
-    alert(error.message || 'No se pudo iniciar sesión.');
-  } finally {
-    setIsLoading(false);
-  }
-}
-
-async function handleCheckDni() {
-  const dni = document.getElementById('check-dni-input').value.trim();
-
-  if (!dni || dni.length < 8) {
-    alert('Ingresa un DNI válido.');
-    return;
-  }
-
-  setIsLoading(true);
-
-  try {
-    const response = await crewRpc('tripulante.checkDni', { dni: dni });
-
-    crewState.dniStatus = response.status;
-    document.getElementById('alert-exists').classList.add('hidden');
-
-    if (response.status === 'EXISTS') {
-      document.getElementById('alert-exists').classList.remove('hidden');
-      return;
-    }
-
-    crewState.form.dni = dni;
-    crewState.form.nombres = response.data ? (response.data.nombres || '') : '';
-    crewState.form.apellidos = response.data ? (response.data.apellidos || '') : '';
-    crewState.form.cargo = response.data ? (response.data.cargo || '') : '';
-    crewState.form.empresaRuc = response.data ? (response.data.empresaRuc || '') : '';
-    crewState.form.empresa = response.data ? (response.data.empresa || '') : '';
-
-    setupRegisterWizard(response.status);
-    switchView('register');
-  } catch (error) {
-    alert(error.message || 'No se pudo validar el DNI.');
-  } finally {
-    setIsLoading(false);
-  }
-}
-
-function setupRegisterWizard(status) {
-  const isPreload = status === 'PRELOAD';
-
-  document.getElementById('reg-type-label').innerText = isPreload ? 'Complementar Perfil' : 'Nuevo Ingreso';
-  document.getElementById('reg-step-1-desc').innerText = isPreload
-    ? 'Tus datos fueron precargados por la operación. Solo confirma y finaliza el alta.'
-    : 'Completa tu información para habilitar tu perfil operativo.';
-
-  ['nombres', 'apellidos', 'cargo', 'empresa'].forEach(function (field) {
-    const input = document.getElementById('reg-' + field);
-    if (!input) return;
-
-    input.value = crewState.form[field] || '';
-
-    if (field === 'empresa') {
-      input.readOnly = true;
-      input.classList.add('bg-slate-50', 'text-slate-500');
-      input.classList.add('cursor-not-allowed');
-      return;
-    }
-
-    input.readOnly = isPreload;
-    input.classList.toggle('bg-slate-50', isPreload);
-    input.classList.toggle('text-slate-500', isPreload);
-    input.classList.toggle('cursor-not-allowed', isPreload);
-  });
-
-  document.getElementById('badge-nombres').classList.toggle('hidden', !isPreload);
-  document.getElementById('badge-apellidos').classList.toggle('hidden', !isPreload);
-  document.getElementById('reg-pass-container').classList.toggle('hidden', isPreload);
-
-  goToRegStep(1);
 }
 
 function goToRegStep(step) {
-  crewState.regStep = step;
+  for (let i = 1; i <= 3; i++) {
+    const el = document.getElementById(`reg-step-${i}`);
+    const dot = document.getElementById(`reg-dot-${i}`);
+    if (el) el.classList.toggle('hidden', i !== step);
+    if (dot) dot.className = `w-${i === step ? '8' : '2'} h-1.5 rounded-full transition-all ${i <= step ? 'bg-[#E30613]' : 'bg-slate-200'}`;
+  }
+  currentState.regStep = step;
+}
 
-  document.getElementById('step-1-bar').className =
-    'h-1.5 rounded-full transition-all duration-500 ' + (step >= 1 ? 'bg-red-600' : 'bg-slate-200');
-  document.getElementById('step-2-bar').className =
-    'h-1.5 rounded-full transition-all duration-500 ' + (step >= 2 ? 'bg-red-600' : 'bg-slate-200');
-  document.getElementById('step-3-bar').className =
-    'h-1.5 rounded-full transition-all duration-500 ' + (step >= 3 ? 'bg-red-600' : 'bg-slate-200');
+/**
+ * MANEJADORES DE NEGOCIO (Adaptados a Fetch)
+ */
 
-  document.getElementById('reg-step-1').classList.toggle('hidden', step !== 1);
-  document.getElementById('reg-step-2').classList.toggle('hidden', step !== 2);
-  document.getElementById('reg-step-3').classList.toggle('hidden', step !== 3);
+async function handleDniCheck() {
+  const dni = document.getElementById('input-dni').value;
+  if (!dni || dni.length < 5) {
+    alert("Por favor, ingrese un DNI válido");
+    return;
+  }
 
-  if (typeof lucide !== 'undefined') {
-    lucide.createIcons();
+  setIsLoading(true);
+  const response = await callServer('checkDniStatus', { dni });
+  setIsLoading(false);
+
+  if (response.success) {
+    currentState.form.dni = dni;
+    currentState.dniStatus = response.data.status;
+
+    if (response.data.status === 'EXISTS') {
+      document.getElementById('display-dni-login').innerText = `DNI: ${dni}`;
+      switchView('dni-check');
+    } else {
+      // Si es NEW o PRELOAD, cargamos datos si existen
+      if (response.data.preloadedData) {
+        document.getElementById('reg-nombres').value = response.data.preloadedData.nombre || '';
+        document.getElementById('reg-apellidos').value = response.data.preloadedData.apellidos || '';
+      }
+      switchView('register');
+      goToRegStep(1);
+    }
+  } else {
+    alert("Error: " + response.message);
+  }
+}
+
+async function handleLogin() {
+  const dni = currentState.form.dni;
+  const pass = document.getElementById('login-pass').value;
+
+  if (!pass) return;
+
+  setIsLoading(true);
+  const response = await callServer('loginUser', { dni, pass });
+  setIsLoading(false);
+
+  if (response.success) {
+    currentState.user = response.data;
+    renderDashboard();
+    switchView('dashboard');
+  } else {
+    alert("Contraseña incorrecta o usuario no activo");
   }
 }
 
 async function handleRegister() {
-  const password = crewState.dniStatus === 'PRELOAD'
-    ? promptDefaultPassword_()
-    : document.getElementById('reg-pass').value.trim();
+  const pass = document.getElementById('reg-pass').value;
+  const confirm = document.getElementById('reg-pass-confirm').value;
 
-  const payload = {
-    dni: crewState.form.dni,
-    nombres: document.getElementById('reg-nombres').value.trim(),
-    apellidos: document.getElementById('reg-apellidos').value.trim(),
-    cargo: document.getElementById('reg-cargo').value.trim(),
-    empresaRuc: crewState.form.empresaRuc || '',
-    password: password
+  if (pass.length < 4) { alert("La contraseña es muy corta"); return; }
+  if (pass !== confirm) { alert("Las contraseñas no coinciden"); return; }
+
+  const userData = {
+    dni: currentState.form.dni,
+    nombres: document.getElementById('reg-nombres').value,
+    apellidos: document.getElementById('reg-apellidos').value,
+    password: pass
   };
 
-  if (!payload.dni || !payload.nombres || !payload.apellidos || !payload.cargo || !payload.password) {
-    alert('Completa todos los campos obligatorios.');
+  setIsLoading(true);
+  const response = await callServer('registerUser', userData);
+  setIsLoading(false);
+
+  if (response.success) {
+    goToRegStep(3);
+  } else {
+    alert(response.message);
+  }
+}
+
+/**
+ * RENDERIZADO DE DASHBOARD (UI/UX Preservada)
+ */
+function renderDashboard() {
+  const user = currentState.user;
+  if (!user) return;
+
+  // Datos de Usuario
+  document.getElementById('dash-user-name').innerHTML = `${user.nombre}<br/>${user.apellidos}`;
+  document.getElementById('dash-user-cargo').innerText = user.cargo || 'TRIPULANTE';
+  document.getElementById('dash-user-dni').innerText = `DNI ${user.dni}`;
+
+  // Cálculo de Círculo de Cumplimiento (Basado en r=34 del index)
+  const compliance = user.compliance || 0;
+  const circumference = 2 * Math.PI * 34; // aprox 213.6
+  const offset = circumference - (compliance / 100) * circumference;
+  
+  const circle = document.getElementById('dash-compl-circle');
+  if (circle) {
+    circle.style.strokeDasharray = circumference;
+    circle.style.strokeDashoffset = offset;
+  }
+
+  document.getElementById('dash-compl-text').innerText = `${compliance}%`;
+  const label = document.getElementById('dash-compl-label');
+  label.innerText = compliance >= 90 ? 'ÓPTIMO' : (compliance >= 70 ? 'ACEPTABLE' : 'DEFICIENTE');
+  label.className = `text-[11px] font-black uppercase tracking-widest ${compliance >= 70 ? 'text-green-500' : 'text-red-500'}`;
+
+  // Render de Documentos
+  renderDocuments(user.documents || []);
+}
+
+function renderDocuments(docs) {
+  const container = document.getElementById('docs-container');
+  const countEl = document.getElementById('doc-count');
+  
+  countEl.innerText = docs.length;
+
+  if (docs.length === 0) {
+    container.innerHTML = `<p class="text-center text-slate-400 py-8 text-sm">No hay documentos registrados</p>`;
     return;
   }
 
-  setIsLoading(true);
+  container.innerHTML = docs.map(d => {
+    const statusMap = {
+      'VALIDADO': { color: 'text-green-600 bg-green-50 border-green-100', icon: 'check-circle' },
+      'PENDIENTE_VALIDACION': { color: 'text-amber-600 bg-amber-50 border-amber-100', icon: 'clock' },
+      'OBSERVADO': { color: 'text-red-600 bg-red-50 border-red-100', icon: 'alert-circle' }
+    };
 
-  try {
-    await crewRpc('tripulante.register', payload);
-    goToRegStep(3);
-  } catch (error) {
-    alert(error.message || 'No se pudo registrar el tripulante.');
-  } finally {
-    setIsLoading(false);
-  }
-}
+    const style = statusMap[d.estado_validacion] || statusMap['PENDIENTE_VALIDACION'];
 
-async function loadCrewDashboard() {
-  if (!crewState.user) return;
-
-  const payload = await crewRpc('tripulante.bootstrap', { dni: crewState.user.dni });
-
-  crewState.user = payload.user;
-  crewState.documents = payload.documents || [];
-  crewState.summary = payload.summary || {
-    totalDocs: 0,
-    validatedDocs: 0,
-    compliance: 0
-  };
-
-  renderDashboard();
-}
-
-function renderDashboard() {
-  const user = crewState.user;
-  if (!user) return;
-
-  const names = (user.nombres || '').split(' ');
-  const lastNames = (user.apellidos || '').split(' ');
-
-  const dashUserName = document.getElementById('dash-user-name');
-  const dashUserCargo = document.getElementById('dash-user-cargo');
-  const dashUserDni = document.getElementById('dash-user-dni');
-  const dashCompanyHeader = document.getElementById('dash-user-empresa-header');
-
-  if (dashUserName) {
-    dashUserName.innerHTML = (names[0] || '') + '<br/>' + (lastNames[0] || '');
-  }
-
-  if (dashUserCargo) {
-    dashUserCargo.innerText = user.cargo || 'SIN CARGO';
-  }
-
-  if (dashUserDni) {
-    dashUserDni.innerText = 'DNI ' + user.dni;
-  }
-
-  if (dashCompanyHeader) {
-    dashCompanyHeader.innerText = user.empresa || user.empresaRuc || '';
-  }
-
-  const compliance = Number(crewState.summary.compliance || 0);
-  document.getElementById('dash-compl-text').innerText = compliance + '%';
-  document.getElementById('dash-compl-label').innerText =
-    compliance >= 80 ? 'EXCELENTE' : (compliance > 0 ? 'EN PROCESO' : 'SIN CALIFICAR');
-
-  const circle = document.getElementById('dash-compl-circle');
-  const offset = 263.89 * (1 - compliance / 100);
-
-  if (circle) {
-    setTimeout(function () {
-      circle.style.strokeDashoffset = offset;
-    }, 100);
-  }
-
-  document.getElementById('dash-doc-count').innerText =
-    crewState.summary.validatedDocs + '/' + crewState.summary.totalDocs;
-
-  const list = document.getElementById('dash-document-list');
-  if (!list) return;
-
-  list.innerHTML = crewState.documents.map(function (doc) {
-    return '' +
-      '<div class="bg-white p-5 rounded-[32px] border border-slate-100/50 flex items-center gap-5 shadow-sm">' +
-        '<div class="p-4 rounded-2xl flex items-center justify-center ' + getCrewDocIconClass_(doc.status) + '">' +
-          '<i data-lucide="id-card" size="24"></i>' +
-        '</div>' +
-        '<div class="space-y-1 flex-1">' +
-          '<p class="text-[16px] font-bold text-[#101828]">' + escapeHtml_(doc.type || '') + '</p>' +
-          '<p class="text-[11px] font-black uppercase tracking-wider ' + getCrewDocTextClass_(doc.status) + '">' +
-            escapeHtml_(formatCrewStatus_(doc.status || 'PENDIENTE')) + ' • Vence: ' + escapeHtml_(doc.expiryDate || 'Sin fecha') +
-          '</p>' +
-          (doc.observations
-            ? '<p class="text-[11px] text-amber-700 font-medium">' + escapeHtml_(doc.observations) + '</p>'
-            : '') +
-        '</div>' +
-      '</div>';
+    return `
+      <div class="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm space-y-4">
+          <div class="flex items-center justify-between">
+              <div class="space-y-1">
+                  <h4 class="font-bold text-slate-900 leading-none">${d.tipo_documento}</h4>
+                  <div class="flex items-center gap-1.5 text-slate-400">
+                      <i data-lucide="calendar" size="14"></i>
+                      <p class="text-[12px] font-medium uppercase tracking-wide">Vence: ${d.fecha_vencimiento || 'N/A'}</p>
+                  </div>
+              </div>
+              <div class="px-3 py-1.5 rounded-full border ${style.color} flex items-center gap-1.5 shrink-0">
+                  <i data-lucide="${style.icon}" size="14"></i>
+                  <span class="text-[10px] font-black uppercase tracking-widest leading-none">${d.estado_validacion.replace('_', ' ')}</span>
+              </div>
+          </div>
+          ${d.observaciones ? `
+            <div class="p-4 bg-amber-50/50 border border-amber-100 rounded-2xl">
+                <p class="text-[12px] font-medium text-amber-800 leading-relaxed">${d.observaciones}</p>
+            </div>
+          ` : ''}
+      </div>
+    `;
   }).join('');
-
-  if (typeof lucide !== 'undefined') {
-    lucide.createIcons();
-  }
+  
+  if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
+/**
+ * LOGOUT Y REFRESH
+ */
 async function handleRefresh() {
-  if (!crewState.user) return;
-
+  if (!currentState.user) return;
   setIsLoading(true);
-
-  try {
-    await loadCrewDashboard();
-  } catch (error) {
-    alert(error.message || 'No se pudo refrescar el tablero.');
-  } finally {
-    setIsLoading(false);
+  const response = await callServer('getDashboardData', { dni: currentState.user.dni });
+  setIsLoading(false);
+  if (response.success) {
+    currentState.user = response.data;
+    renderDashboard();
   }
 }
 
 function handleLogout() {
-  setIsLoading(true);
-
-  setTimeout(function () {
-    crewState.user = null;
-    window.location.reload();
-  }, 500);
-}
-
-function promptDefaultPassword_() {
-  return 'HTBPDT-' + crewState.form.dni.slice(-4);
-}
-
-function getCrewDocIconClass_(status) {
-  if (status === 'VALIDADO' || status === 'VIGENTE') return 'bg-emerald-50 text-emerald-600';
-  if (status === 'OBSERVADO' || status === 'POR_VENCER') return 'bg-amber-50 text-amber-600';
-  if (status === 'RECHAZADO' || status === 'VENCIDO' || status === 'FALTANTE') return 'bg-red-50 text-red-600';
-  return 'bg-slate-100 text-slate-500';
-}
-
-function getCrewDocTextClass_(status) {
-  if (status === 'VALIDADO' || status === 'VIGENTE') return 'text-emerald-600';
-  if (status === 'OBSERVADO' || status === 'POR_VENCER') return 'text-amber-600';
-  if (status === 'RECHAZADO' || status === 'VENCIDO' || status === 'FALTANTE') return 'text-red-600';
-  return 'text-slate-500';
-}
-
-function formatCrewStatus_(status) {
-  return String(status || '').replace(/_/g, ' ');
-}
-
-function escapeHtml_(value) {
-  return String(value || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+  currentState.user = null;
+  switchView('login');
+  document.getElementById('input-dni').value = '';
+  document.getElementById('login-pass').value = '';
 }
