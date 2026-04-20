@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HT-BPDT Crew Portal</title>
+    <!-- Tailwind Play CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* Mobile-First Layout Corrections */
+        #app-root {
+            width: 100%;
+            max-width: 480px;
+            margin: 0 auto;
+            position: relative;
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            padding-top: env(safe-area-inset-top); /* iOS support */
+        }
+        /* Handle body centering only on desktop */
+        @media (min-width: 641px) {
+            body {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                padding: 2rem;
+            }
+            #app-root {
+                min-height: auto;
+                height: 844px; /* Default mobile viewport simulation on desktop */
+                border-radius: 48px;
+                overflow: hidden;
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+            }
+        }
+        @media (max-width: 640px) {
+            body {
+                padding: 0;
+                background-color: #fff; /* Blend with dashboard on mobile */
+            }
+            #app-root {
+                border-radius: 0;
+            }
+        }
+        
+        .view-transition {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        /* ... existing view classes ... */
+        .view-hidden {
+            display: none;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        .view-active {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        slate: { 50: '#F8FAFC' },
+                        brand: { red: '#E20613' }
+                    },
+                    spacing: {
+                        'safe-top': 'env(safe-area-inset-top)',
+                        'safe-bottom': 'env(safe-area-inset-bottom)'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans">
+
+    <!-- STYLED CONTAINER -->
+    <div id="app-root">
+        
+        <!-- GLOBAL LOADER (Sincronizando) -->
+        <div id="global-loader" class="fixed inset-0 z-[100] bg-white/90 backdrop-blur-xl flex flex-col items-center justify-center hidden">
+            <div class="relative">
+                <div class="w-20 h-20 border-[3px] border-slate-100 border-t-red-600 rounded-full animate-spin"></div>
+                <div class="absolute inset-0 m-auto flex items-center justify-center text-red-600">
+                    <i data-lucide="truck" size="24"></i>
+                </div>
+            </div>
+            <p class="mt-6 text-[11px] font-black tracking-[0.4em] text-red-600 uppercase animate-pulse">Sincronizando</p>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- VIEW: LOGIN -->
+        <!-- ========================================== -->
+        <div id="view-login" class="view-transition view-active p-6 pt-12 space-y-8">
+            <div class="text-center space-y-6">
+                <!-- LOGO BOX -->
+                <div class="inline-flex p-6 bg-[#E30613] rounded-[40px] shadow-2xl shadow-red-200 text-white">
+                    <i data-lucide="truck" size="52" stroke-width="2"></i>
+                </div>
+                <div class="flex flex-col items-center">
+                    <p class="text-[14px] font-semibold text-[#667085] uppercase tracking-[0.25em] mb-1">HT-BPDT</p>
+                    <h1 class="text-[40px] font-black text-[#101828] tracking-tight leading-[37px] uppercase text-center">
+                        Portal<br/>
+                        <span class="text-[#101828]">Tripulación</span>
+                    </h1>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-[40px] p-8 shadow-2xl shadow-slate-200/60 border border-slate-100 space-y-8">
+                <div class="space-y-5">
+                    <!-- Custom Input: DNI -->
+                    <div class="space-y-1.5 w-full">
+                        <label class="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-1">DNI de Usuario</label>
+                        <div class="relative group">
+                            <div class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-red-500 transition-colors">
+                                <i data-lucide="user" size="18"></i>
+                            </div>
+                            <input id="login-dni" type="text" placeholder="Ingresa tu número" class="w-full pl-12 pr-4 py-4 bg-white border-slate-200 text-slate-900 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 border rounded-2xl outline-none transition-all font-medium placeholder:text-slate-400">
+                        </div>
+                    </div>
+                    <!-- Custom Input: Pass -->
+                    <div class="space-y-1.5 w-full">
+                        <label class="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-1">Tu Clave</label>
+                        <div class="relative group">
+                            <div class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-red-500 transition-colors">
+                                <i data-lucide="lock" size="18"></i>
+                            </div>
+                            <input id="login-pass" type="password" placeholder="••••••••" class="w-full pl-12 pr-4 py-4 bg-white border-slate-200 text-slate-900 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 border rounded-2xl outline-none transition-all font-medium placeholder:text-slate-400">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <button onclick="handleLogin()" class="w-full text-lg py-5 bg-red-600 text-white shadow-xl shadow-red-200 hover:bg-red-700 rounded-2xl font-bold transition-all active:scale-[0.98] outline-none">
+                        ACCEDER AL SISTEMA
+                    </button>
+                    <div class="flex items-center gap-4 py-2">
+                        <div class="flex-1 h-px bg-slate-100"></div>
+                        <span class="text-[10px] font-bold text-slate-300 uppercase tracking-widest">ó</span>
+                        <div class="flex-1 h-px bg-slate-100"></div>
+                    </div>
+                    <button onclick="switchView('dni-check')" class="w-full py-4 text-sm border-2 border-slate-200 text-slate-600 hover:bg-slate-50 rounded-2xl font-bold transition-all active:scale-[0.98] outline-none">
+                        REGISTRARSE POR PRIMERA VEZ
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex flex-col items-center gap-6">
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-loose text-center">
+                    HT-BPDT LOGÍSTICA S.A.C.<br/>© 2026 SISTEMA DE GESTIÓN
+                </p>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- VIEW: DNI CHECK -->
+        <!-- ========================================== -->
+        <div id="view-dni-check" class="view-transition view-hidden p-6 pt-12 space-y-8">
+            <div class="flex items-center justify-between px-2">
+                <button onclick="switchView('login')" class="w-12 h-12 flex items-center justify-center bg-white rounded-2xl shadow-sm border border-slate-100 text-slate-600 hover:bg-slate-50 transition-colors">
+                    <i data-lucide="chevron-left" size="20"></i>
+                </button>
+                <div class="text-right">
+                    <h2 class="text-[22px] font-black text-slate-900 leading-tight">Identidad</h2>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-0.5">Validación de Sistema</p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-[40px] p-8 shadow-2xl shadow-slate-200/60 border border-slate-100 space-y-10">
+                <div class="text-center space-y-4">
+                    <div class="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto text-slate-400">
+                        <i data-lucide="search" size="28"></i>
+                    </div>
+                    <div class="space-y-2">
+                        <h3 class="text-2xl font-black text-slate-900 italic">Consulta tu estado</h3>
+                        <p class="text-sm text-slate-500 leading-relaxed px-4">
+                            Ingresa tu DNI para verificar si ya posees un perfil o si tus datos están precargados por RR.HH.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="space-y-6">
+                    <div class="space-y-1.5 w-full">
+                        <label class="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-1">Número de Documento</label>
+                        <div class="relative group">
+                            <div class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-red-500 transition-colors">
+                                <i data-lucide="credit-card" size="18"></i>
+                            </div>
+                            <input id="check-dni-input" type="text" placeholder="00000000" class="w-full pl-12 pr-4 py-4 bg-white border-slate-200 text-slate-900 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 border rounded-2xl outline-none transition-all font-medium placeholder:text-slate-400">
+                        </div>
+                    </div>
+                    <button id="btn-check-dni" onclick="handleCheckDni()" class="w-full py-5 bg-red-600 text-white shadow-xl shadow-red-200 hover:bg-red-700 rounded-2xl font-bold transition-all active:scale-[0.98] outline-none flex items-center justify-center gap-2">
+                        CONSULTAR DATOS <i data-lucide="chevron-right" size="18"></i>
+                    </button>
+                </div>
+
+                <!-- ALERTA EXISTS -->
+                <div id="alert-exists" class="p-6 bg-amber-50 rounded-[32px] border border-amber-100 space-y-4 hidden">
+                    <div class="flex gap-4">
+                        <div class="p-3 bg-amber-100/50 rounded-2xl text-amber-600 h-fit">
+                            <i data-lucide="alert-circle" size="20"></i>
+                        </div>
+                        <div class="space-y-1">
+                            <p class="text-sm font-black text-amber-900 uppercase italic">Registro Existente</p>
+                            <p class="text-xs text-amber-800/70 font-medium leading-relaxed">
+                                Este número ya tiene una cuenta activa. Si olvidaste tu clave, contacta a soporte.
+                            </p>
+                        </div>
+                    </div>
+                    <button onclick="switchView('login')" class="w-full bg-amber-600 hover:bg-amber-700 text-white py-3 rounded-xl font-bold text-xs shadow-lg shadow-amber-200">
+                        VOLVER AL INICIO DE SESIÓN
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- VIEW: REGISTER Wizard -->
+        <!-- ========================================== -->
+        <div id="view-register" class="view-transition view-hidden p-6 pt-12 space-y-8">
+            <div class="flex items-center justify-between px-2">
+                <button onclick="switchView('dni-check')" class="w-12 h-12 flex items-center justify-center bg-white rounded-2xl shadow-sm border border-slate-100 text-slate-600 hover:bg-slate-50">
+                    <i data-lucide="chevron-left" size="20"></i>
+                </button>
+                <div class="text-right">
+                    <h2 class="text-[22px] font-black text-slate-900 leading-tight">Registro</h2>
+                    <p id="reg-type-label" class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-0.5"></p>
+                </div>
+            </div>
+
+            <!-- Step Indicators -->
+            <div class="px-2 flex items-center justify-between gap-4">
+                <div class="flex-1 space-y-2"><div id="step-1-bar" class="h-1.5 rounded-full transition-all duration-500 bg-red-600"></div></div>
+                <div class="flex-1 space-y-2"><div id="step-2-bar" class="h-1.5 rounded-full transition-all duration-500 bg-slate-200"></div></div>
+                <div class="flex-1 space-y-2"><div id="step-3-bar" class="h-1.5 rounded-full transition-all duration-500 bg-slate-200"></div></div>
+            </div>
+
+            <div class="bg-white rounded-[40px] p-8 shadow-2xl shadow-slate-200/60 border border-slate-100 min-h-[440px] flex flex-col">
+                
+                <!-- STEP 1: DATOS -->
+                <div id="reg-step-1" class="space-y-8 flex-1">
+                    <div class="space-y-2">
+                        <h3 class="text-2xl font-black text-slate-900 italic">Tus Datos</h3>
+                        <p id="reg-step-1-desc" class="text-sm text-slate-500"></p>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <!-- Nombres -->
+                            <div class="space-y-1.5">
+                                <div class="flex justify-between items-center ml-1">
+                                    <label class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Nombres</label>
+                                    <span id="badge-nombres" class="flex items-center gap-1 text-[10px] text-green-600 font-bold uppercase tracking-wider hidden">
+                                        <i data-lucide="badge-check" size="12"></i> Verificado
+                                    </span>
+                                </div>
+                                <input id="reg-nombres" type="text" class="w-full px-4 py-4 bg-white border border-slate-200 text-slate-900 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 rounded-2xl outline-none transition-all font-medium">
+                            </div>
+                            <!-- Apellidos -->
+                            <div class="space-y-1.5">
+                                <div class="flex justify-between items-center ml-1">
+                                    <label class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Apellidos</label>
+                                    <span id="badge-apellidos" class="flex items-center gap-1 text-[10px] text-green-600 font-bold uppercase tracking-wider hidden">
+                                        <i data-lucide="badge-check" size="12"></i> Verificado
+                                    </span>
+                                </div>
+                                <input id="reg-apellidos" type="text" class="w-full px-4 py-4 bg-white border border-slate-200 text-slate-900 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 rounded-2xl outline-none transition-all font-medium">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <!-- Cargo -->
+                            <div class="space-y-1.5 w-full">
+                                <label class="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-1">Cargo</label>
+                                <div class="relative group">
+                                    <div class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-red-500 transition-colors">
+                                        <i data-lucide="briefcase" size="18"></i>
+                                    </div>
+                                    <input id="reg-cargo" type="text" class="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 text-slate-900 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 border rounded-2xl outline-none transition-all font-medium">
+                                </div>
+                            </div>
+                            <!-- Empresa -->
+                            <div class="space-y-1.5 w-full">
+                                <label class="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-1">Empresa</label>
+                                <div class="relative group">
+                                    <div class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-red-500 transition-colors">
+                                        <i data-lucide="building-2" size="18"></i>
+                                    </div>
+                                    <input id="reg-empresa" type="text" class="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 text-slate-900 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 border rounded-2xl outline-none transition-all font-medium">
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Password Section (Only if NEW) -->
+                        <div id="reg-pass-container" class="space-y-1.5 w-full">
+                            <label class="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-1">Crea tu Clave</label>
+                            <div class="relative group">
+                                <div class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-red-500 transition-colors">
+                                    <i data-lucide="lock" size="18"></i>
+                                </div>
+                                <input id="reg-pass" type="password" placeholder="Mínimo 6 caracteres" class="w-full pl-12 pr-4 py-4 bg-white border-slate-200 text-slate-900 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 border rounded-2xl outline-none transition-all font-medium placeholder:text-slate-400">
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="goToRegStep(2)" class="w-full mt-auto py-5 bg-red-600 text-white shadow-xl shadow-red-200 hover:bg-red-700 rounded-2xl font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-2 outline-none">
+                        SIGUIENTE: DOCUMENTOS <i data-lucide="chevron-right" size="18"></i>
+                    </button>
+                </div>
+
+                <!-- STEP 2: DOCUMENTOS -->
+                <div id="reg-step-2" class="space-y-8 flex-1 hidden">
+                    <div class="space-y-2">
+                        <h3 class="text-2xl font-black text-slate-900 italic">Archivos</h3>
+                        <p class="text-sm text-slate-500 leading-relaxed">Sube capturas legibles de tus documentos principales para habilitar tu servicio.</p>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div class="p-6 border-2 border-dashed border-slate-100 rounded-3xl group bg-slate-50/50 hover:bg-red-50 hover:border-red-200 transition-all cursor-pointer">
+                            <div class="flex items-center gap-4">
+                                <div class="p-4 bg-white rounded-2xl text-slate-400 group-hover:text-red-500 shadow-sm transition-colors">
+                                    <i data-lucide="upload" size="24"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="font-bold text-slate-700 text-sm">Foto de DNI (Color)</p>
+                                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">JPEG, PNG o PDF</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="p-6 border-2 border-dashed border-slate-100 rounded-3xl group bg-slate-50/50 hover:bg-red-50 hover:border-red-200 transition-all cursor-pointer">
+                            <div class="flex items-center gap-4">
+                                <div class="p-4 bg-white rounded-2xl text-slate-400 group-hover:text-red-500 shadow-sm transition-colors">
+                                    <i data-lucide="upload" size="24"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="font-bold text-slate-700 text-sm">Licencia de Conducir</p>
+                                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Vigencia mínima 3 meses</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col gap-3 mt-auto">
+                        <button onclick="handleRegister()" class="w-full py-5 bg-red-600 text-white shadow-xl shadow-red-200 hover:bg-red-700 rounded-2xl font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-2 outline-none">
+                            FINALIZAR REGISTRO <i data-lucide="check-circle-2" size="18"></i>
+                        </button>
+                        <button onclick="goToRegStep(1)" class="text-xs font-bold text-slate-500 hover:bg-slate-100 py-3 rounded-xl transition-all">
+                            ATRÁS A TUS DATOS
+                        </button>
+                    </div>
+                </div>
+
+                <!-- STEP 3: SUCCESS -->
+                <div id="reg-step-3" class="flex-1 flex flex-col items-center justify-center text-center space-y-10 hidden">
+                    <div class="relative">
+                        <div class="w-32 h-32 bg-green-50 text-green-500 rounded-full flex items-center justify-center transition-all">
+                            <i data-lucide="check-circle-2" size="64"></i>
+                        </div>
+                        <div class="absolute inset-0 bg-green-400 rounded-full blur-3xl opacity-30 -z-10 animate-pulse"></div>
+                    </div>
+
+                    <div class="space-y-3 px-6">
+                        <h3 class="text-3xl font-black text-slate-900 tracking-tighter italic">¡Registro Exitoso!</h3>
+                        <p class="text-sm text-slate-500 leading-relaxed font-medium">
+                            Bienvenido a la tripulación de HT-BPDT. Tus documentos pasarán por revisión técnica. 
+                            <span class="font-bold text-slate-900">Ya puedes iniciar sesión.</span>
+                        </p>
+                    </div>
+
+                    <button onclick="switchView('login')" class="w-full py-5 bg-slate-900 text-white shadow-xl shadow-slate-200 hover:bg-slate-800 rounded-2xl font-bold transition-all active:scale-[0.98] outline-none">
+                        VOLVER AL INICIO
+                    </button>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- VIEW: DASHBOARD -->
+        <!-- ========================================== -->
+        <div id="view-dashboard" class="view-transition view-hidden w-full min-h-screen bg-[#F8FAFC] flex flex-col">
+            
+            <!-- Profile Header (Tripulación Pro) -->
+            <div class="bg-[#E20613] px-6 pt-12 pb-28 relative">
+                <div class="flex justify-between items-start relative z-10">
+                    <div class="space-y-4">
+                        <div class="space-y-0">
+                            <p class="text-white/90 text-[10px] sm:text-[12px] font-bold uppercase tracking-widest">Tripulación Pro</p>
+                            <h2 id="dash-user-name" class="text-[28px] sm:text-[38px] font-black text-white leading-none tracking-tight uppercase">
+                                <!-- Pre-filled CIRILO AGUILAR -->
+                            </h2>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span id="dash-user-cargo" class="px-4 py-1.5 bg-[#B90510] rounded-lg text-[11px] font-black text-white uppercase tracking-wider">
+                                <!-- CONDUCTOR -->
+                            </span>
+                            <div class="flex items-center gap-1.5 px-3 py-1.5">
+                                <div class="w-1.5 h-1.5 bg-[#32D583] rounded-full"></div>
+                                <p class="text-white text-[11px] font-bold uppercase tracking-widest">Activo</p>
+                            </div>
+                        </div>
+                        <div class="flex flex-col">
+                            <p id="dash-user-empresa-header" class="text-[12px] font-medium text-white/80 uppercase tracking-widest truncate">
+                                <!-- INDUAMERICA SERVICIOS -->
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="handleRefresh()" class="w-12 h-12 flex items-center justify-center bg-white/10 border border-white/20 rounded-2xl text-white hover:bg-white/20 transition-all">
+                            <i data-lucide="rotate-cw" size="20"></i>
+                        </button>
+                        <button onclick="handleLogout()" class="w-12 h-12 flex items-center justify-center bg-white/10 border border-white/20 rounded-2xl text-white hover:bg-white/20 transition-all">
+                            <i data-lucide="log-out" size="20"></i>
+                        </button>
+                    </div>
+                </div>
+                <!-- Background Decoration -->
+                <div class="absolute top-0 right-0 w-64 h-64 bg-black/5 rounded-full -mr-20 -mt-20 blur-3xl"></div>
+            </div>
+
+            <!-- Estatus Legal Summary Card -->
+            <div class="px-6 -mt-16 relative z-20">
+                <div class="bg-white rounded-[40px] shadow-xl shadow-slate-200/50 p-6 flex items-center gap-8">
+                    <!-- Progress Radial (Significantly Larger) -->
+                    <div class="relative w-32 h-32 shrink-0 flex items-center justify-center">
+                        <svg class="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="42" fill="transparent" stroke="#F2F4F7" stroke-width="10"></circle>
+                            <circle id="dash-compl-circle" cx="50" cy="50" r="42" fill="transparent" stroke="#E20613" stroke-width="10" stroke-dasharray="263.89" stroke-dashoffset="263.89" stroke-linecap="round" class="transition-all duration-1000"></circle>
+                        </svg>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <span id="dash-compl-text" class="text-[32px] font-black text-[#101828]">0%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex-1 space-y-4">
+                        <div class="space-y-0.5">
+                            <p class="text-[10px] sm:text-[11px] font-bold text-[#98A2B3] uppercase tracking-widest leading-none">Estatus Legal</p>
+                            <p id="dash-compl-label" class="text-[18px] sm:text-[20px] font-black text-[#E20613] leading-tight uppercase">Sin Calificar</p>
+                        </div>
+
+                        <!-- Compact Documents Card -->
+                        <div class="bg-[#F9FAFB] py-2 px-5 rounded-2xl flex items-center justify-between border border-slate-50/50">
+                            <p class="text-[9px] font-bold text-[#98A2B3] uppercase tracking-widest">Documentos</p>
+                            <p id="dash-doc-count" class="text-[14px] font-black text-[#101828]">0/0</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Documents List Section -->
+            <div class="flex-1 px-6 py-10 space-y-8 overflow-y-auto">
+                <p class="text-[14px] font-black text-[#98A2B3] uppercase tracking-[0.2em] ml-2">Mis Documentos</p>
+                
+                <div id="dash-document-list" class="space-y-4">
+                    <!-- Dynamic Items -->
+                    <div class="bg-white p-5 rounded-[32px] border border-slate-100/50 flex items-center gap-5 shadow-sm">
+                        <div class="p-4 bg-[#FFF9E5] rounded-2xl flex items-center justify-center">
+                            <i data-lucide="id-card" size="24" class="text-[#008CC9]"></i>
+                        </div>
+                        <div class="space-y-1">
+                            <p class="text-[16px] font-bold text-[#101828]">Carnet Sanidad</p>
+                            <p class="text-[11px] font-black text-[#F79009] uppercase tracking-wider">Pendiente • Vence: Sin Fecha</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-[32px] border border-slate-100/50 flex items-center gap-5 shadow-sm">
+                        <div class="p-4 bg-[#FFF9E5] rounded-2xl flex items-center justify-center">
+                            <i data-lucide="id-card" size="24" class="text-[#008CC9]"></i>
+                        </div>
+                        <div class="space-y-1">
+                            <p class="text-[16px] font-bold text-[#101828]">DNI</p>
+                            <p class="text-[11px] font-black text-[#F79009] uppercase tracking-wider">Pendiente • Vence: Sin Fecha</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    <script>
+      window.APP_CONFIG = typeof APP_CONFIG !== 'undefined' ? APP_CONFIG : { app: 'tripulante', httpEndpoint: '' };
+    </script>
+    <script>
+const crewState = {
+  view: 'login',
+  isLoading: false,
+  user: null,
+  dniStatus: null,
+  regStep: 1,
+  form: {
+    dni: '',
+    nombres: '',
+    apellidos: '',
+    cargo: '',
+    empresa: ''
+  },
+  summary: {
+    totalDocs: 0,
+    validatedDocs: 0,
+    compliance: 0
+  },
+  documents: []
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+  lucide.createIcons();
+});
+
+async function crewRpc(action, payload) {
+  const request = {
+    app: 'tripulante',
+    action: action,
+    payload: payload || {}
+  };
+
+  if (typeof google !== 'undefined' && google.script && google.script.run) {
+    return new Promise(function(resolve, reject) {
+      google.script.run
+        .withSuccessHandler(function(response) {
+          if (response && response.ok) {
+            resolve(response.data);
+            return;
+          }
+          reject(new Error(response && response.error ? response.error.message : 'Respuesta inválida del backend.'));
+        })
+        .withFailureHandler(function(error) {
+          reject(error instanceof Error ? error : new Error(String(error)));
+        })
+        .dispatchRpc(request);
+    });
+  }
+
+  if (window.APP_CONFIG && window.APP_CONFIG.httpEndpoint) {
+    const response = await fetch(window.APP_CONFIG.httpEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request)
+    });
+    const json = await response.json();
+    if (!json.ok) {
+      throw new Error(json.error && json.error.message ? json.error.message : 'Error del backend.');
+    }
+    return json.data;
+  }
+
+  throw new Error('No se pudo conectar con el backend unificado.');
+}
+
+function switchView(viewName) {
+  ['login', 'dni-check', 'register', 'dashboard'].forEach(function(view) {
+    const element = document.getElementById('view-' + view);
+    if (!element) return;
+    element.classList.add('view-hidden');
+    element.classList.remove('view-active');
+  });
+
+  const target = document.getElementById('view-' + viewName);
+  if (target) {
+    target.classList.remove('view-hidden');
+    target.classList.add('view-active');
+  }
+
+  crewState.view = viewName;
+  lucide.createIcons();
+}
+
+function setIsLoading(loading) {
+  crewState.isLoading = loading;
+  const loader = document.getElementById('global-loader');
+  if (!loader) return;
+  loader.classList.toggle('hidden', !loading);
+}
+
+async function handleLogin() {
+  const dni = document.getElementById('login-dni').value.trim();
+  const password = document.getElementById('login-pass').value.trim();
+
+  if (!dni || !password) {
+    alert('Ingresa tu DNI y tu contraseña.');
+    return;
+  }
+
+  setIsLoading(true);
+
+  try {
+    const auth = await crewRpc('auth.login', {
+      dni: dni,
+      password: password,
+      portal: 'TRIPULANTE'
+    });
+
+    crewState.user = auth.user;
+    await loadCrewDashboard();
+    switchView('dashboard');
+  } catch (error) {
+    alert(error.message || 'No se pudo iniciar sesión.');
+  } finally {
+    setIsLoading(false);
+  }
+}
+
+async function handleCheckDni() {
+  const dni = document.getElementById('check-dni-input').value.trim();
+  if (!dni || dni.length < 8) {
+    alert('Ingresa un DNI válido.');
+    return;
+  }
+
+  setIsLoading(true);
+
+  try {
+    const response = await crewRpc('tripulante.checkDni', { dni: dni });
+    crewState.dniStatus = response.status;
+    document.getElementById('alert-exists').classList.add('hidden');
+
+    if (response.status === 'EXISTS') {
+      document.getElementById('alert-exists').classList.remove('hidden');
+      return;
+    }
+
+    crewState.form.dni = dni;
+    crewState.form.nombres = response.data ? response.data.nombres : '';
+    crewState.form.apellidos = response.data ? response.data.apellidos : '';
+    crewState.form.cargo = response.data ? response.data.cargo : '';
+    crewState.form.empresa = response.data ? response.data.empresa : '';
+
+    setupRegisterWizard(response.status);
+    switchView('register');
+  } catch (error) {
+    alert(error.message || 'No se pudo validar el DNI.');
+  } finally {
+    setIsLoading(false);
+  }
+}
+
+function setupRegisterWizard(status) {
+  const isPreload = status === 'PRELOAD';
+  document.getElementById('reg-type-label').innerText = isPreload ? 'Complementar Perfil' : 'Nuevo Ingreso';
+  document.getElementById('reg-step-1-desc').innerText = isPreload
+    ? 'Tus datos fueron precargados por la operación. Solo confirma y finaliza el alta.'
+    : 'Completa tu información para habilitar tu perfil operativo.';
+
+  ['nombres', 'apellidos', 'cargo', 'empresa'].forEach(function(field) {
+    const input = document.getElementById('reg-' + field);
+    input.value = crewState.form[field];
+    input.readOnly = isPreload;
+    input.classList.toggle('bg-slate-50', isPreload);
+    input.classList.toggle('text-slate-500', isPreload);
+    input.classList.toggle('cursor-not-allowed', isPreload);
+  });
+
+  document.getElementById('badge-nombres').classList.toggle('hidden', !isPreload);
+  document.getElementById('badge-apellidos').classList.toggle('hidden', !isPreload);
+  document.getElementById('reg-pass-container').classList.toggle('hidden', isPreload);
+
+  goToRegStep(1);
+}
+
+function goToRegStep(step) {
+  crewState.regStep = step;
+
+  document.getElementById('step-1-bar').className = 'h-1.5 rounded-full transition-all duration-500 ' + (step >= 1 ? 'bg-red-600' : 'bg-slate-200');
+  document.getElementById('step-2-bar').className = 'h-1.5 rounded-full transition-all duration-500 ' + (step >= 2 ? 'bg-red-600' : 'bg-slate-200');
+  document.getElementById('step-3-bar').className = 'h-1.5 rounded-full transition-all duration-500 ' + (step >= 3 ? 'bg-red-600' : 'bg-slate-200');
+
+  document.getElementById('reg-step-1').classList.toggle('hidden', step !== 1);
+  document.getElementById('reg-step-2').classList.toggle('hidden', step !== 2);
+  document.getElementById('reg-step-3').classList.toggle('hidden', step !== 3);
+
+  lucide.createIcons();
+}
+
+async function handleRegister() {
+  const password = crewState.dniStatus === 'PRELOAD'
+    ? promptDefaultPassword_()
+    : document.getElementById('reg-pass').value.trim();
+
+  const payload = {
+    dni: crewState.form.dni,
+    nombres: document.getElementById('reg-nombres').value.trim(),
+    apellidos: document.getElementById('reg-apellidos').value.trim(),
+    cargo: document.getElementById('reg-cargo').value.trim(),
+    empresa: document.getElementById('reg-empresa').value.trim(),
+    password: password
+  };
+
+  if (!payload.nombres || !payload.apellidos || !payload.cargo || !payload.empresa || !payload.password) {
+    alert('Completa todos los campos obligatorios.');
+    return;
+  }
+
+  setIsLoading(true);
+
+  try {
+    await crewRpc('tripulante.register', payload);
+    goToRegStep(3);
+  } catch (error) {
+    alert(error.message || 'No se pudo registrar el tripulante.');
+  } finally {
+    setIsLoading(false);
+  }
+}
+
+async function loadCrewDashboard() {
+  if (!crewState.user) return;
+  const payload = await crewRpc('tripulante.bootstrap', { dni: crewState.user.dni });
+  crewState.user = payload.user;
+  crewState.documents = payload.documents || [];
+  crewState.summary = payload.summary || { totalDocs: 0, validatedDocs: 0, compliance: 0 };
+  renderDashboard();
+}
+
+function renderDashboard() {
+  const user = crewState.user;
+  if (!user) return;
+
+  const names = (user.nombres || '').split(' ');
+  const lastNames = (user.apellidos || '').split(' ');
+
+  document.getElementById('dash-user-name').innerHTML = (names[0] || '') + '<br/>' + (lastNames[0] || '');
+  document.getElementById('dash-user-cargo').innerText = user.cargo || 'SIN CARGO';
+  document.getElementById('dash-user-dni').innerText = 'DNI ' + user.dni;
+
+  const compliance = crewState.summary.compliance || 0;
+  document.getElementById('dash-compl-text').innerText = compliance + '%';
+  document.getElementById('dash-compl-label').innerText = compliance >= 80 ? 'EXCELENTE' : (compliance > 0 ? 'EN PROCESO' : 'SIN CALIFICAR');
+
+  const circle = document.getElementById('dash-compl-circle');
+  const offset = 263.89 * (1 - compliance / 100);
+  setTimeout(function() {
+    circle.style.strokeDashoffset = offset;
+  }, 100);
+
+  document.getElementById('dash-doc-count').innerText = crewState.summary.validatedDocs + '/' + crewState.summary.totalDocs;
+
+  const list = document.getElementById('dash-document-list');
+  list.innerHTML = crewState.documents.map(function(doc) {
+    return '' +
+      '<div class="bg-white p-5 rounded-[32px] border border-slate-100/50 flex items-center gap-5 shadow-sm">' +
+        '<div class="p-4 rounded-2xl flex items-center justify-center ' + getCrewDocIconClass_(doc.status) + '">' +
+          '<i data-lucide="id-card" size="24"></i>' +
+        '</div>' +
+        '<div class="space-y-1 flex-1">' +
+          '<p class="text-[16px] font-bold text-[#101828]">' + doc.type + '</p>' +
+          '<p class="text-[11px] font-black uppercase tracking-wider ' + getCrewDocTextClass_(doc.status) + '">' + formatCrewStatus_(doc.status) + ' • Vence: ' + (doc.expiryDate || 'Sin fecha') + '</p>' +
+          (doc.observations ? '<p class="text-[11px] text-amber-700 font-medium">' + doc.observations + '</p>' : '') +
+        '</div>' +
+      '</div>';
+  }).join('');
+
+  lucide.createIcons();
+}
+
+async function handleRefresh() {
+  if (!crewState.user) return;
+  setIsLoading(true);
+  try {
+    await loadCrewDashboard();
+  } catch (error) {
+    alert(error.message || 'No se pudo refrescar el tablero.');
+  } finally {
+    setIsLoading(false);
+  }
+}
+
+function handleLogout() {
+  setIsLoading(true);
+  setTimeout(function() {
+    crewState.user = null;
+    window.location.reload();
+  }, 500);
+}
+
+function promptDefaultPassword_() {
+  return 'HTBPDT-' + crewState.form.dni.slice(-4);
+}
+
+function getCrewDocIconClass_(status) {
+  if (status === 'VALIDADO' || status === 'VIGENTE') return 'bg-emerald-50 text-emerald-600';
+  if (status === 'OBSERVADO' || status === 'POR_VENCER') return 'bg-amber-50 text-amber-600';
+  if (status === 'RECHAZADO' || status === 'VENCIDO' || status === 'FALTANTE') return 'bg-red-50 text-red-600';
+  return 'bg-slate-100 text-slate-500';
+}
+
+function getCrewDocTextClass_(status) {
+  if (status === 'VALIDADO' || status === 'VIGENTE') return 'text-emerald-600';
+  if (status === 'OBSERVADO' || status === 'POR_VENCER') return 'text-amber-600';
+  if (status === 'RECHAZADO' || status === 'VENCIDO' || status === 'FALTANTE') return 'text-red-600';
+  return 'text-slate-500';
+}
+
+function formatCrewStatus_(status) {
+  return status.replace(/_/g, ' ');
+}
+    </script>
+</body>
+</html>
